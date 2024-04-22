@@ -156,6 +156,40 @@ export async function addBalances(specPath: string, nodes: Node[]) {
   }
 }
 
+export async function addConsensusBootnodes(specPath: string, nodes: Node[]) {
+  try {
+    const chainSpec = readAndParseChainSpec(specPath);
+    const runtimeConfig = getRuntimeConfig(chainSpec);
+    
+    const bootnodes = [];
+
+    for (const node of nodes) {
+        const stashKey = node.accounts.sr_stash.address;
+
+        bootnodes.push(stashKey);
+
+        new CreateLogTable({
+          colWidths: [30, 20, 70],
+        }).pushToPrint([
+          [
+            decorators.cyan("👤 Added Consensus Bootnode"),
+            decorators.green(node.name),
+            decorators.magenta(stashKey),
+          ],
+        ]);
+    }
+
+    runtimeConfig.bootnodes.bootnodes = bootnodes;
+
+    writeChainSpec(specPath, chainSpec);
+  } catch (err) {
+    console.error(
+      `\n${decorators.red(`Fail to add consensus bootnodes for nodes: ${nodes}`)}`,
+    );
+    throw err;
+  }
+}
+
 export function getNodeKey(node: Node, useStash = true): GenesisNodeKey {
   try {
     const { sr_stash, sr_account, ed_account, ec_account } = node.accounts;
@@ -743,6 +777,9 @@ export async function customizePlainRelayChain(
 
     // Clear all defaults
     clearAuthorities(specPath);
+
+    // add consensus bootnodes
+    await addConsensusBootnodes(specPath, networkSpec.relaychain.nodes);
 
     // add balances for nodes
     await addBalances(specPath, networkSpec.relaychain.nodes);
